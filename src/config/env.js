@@ -25,7 +25,7 @@ const envSchema = z.object({
   METRICS_INTERVAL_MS: positiveInt.default(1000),
   REPORTS_DIR: z.string().default('storage/reports'),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
+  GEMINI_MODEL: z.string().default('gemini-3.1-flash-lite'),
   GROQ_API_KEY: z.string().optional(),
   GROQ_MODEL: z.string().default('openai/gpt-oss-20b'),
   AI_TIMEOUT_MS: positiveInt.default(20_000),
