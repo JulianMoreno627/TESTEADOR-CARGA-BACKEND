@@ -1,4 +1,6 @@
 import { createServer } from 'node:http';
+import { createAiClient } from './ai/createAiClient.js';
+import { AnalysisController } from './api/controllers/AnalysisController.js';
 import { LoadTestController } from './api/controllers/LoadTestController.js';
 import { SystemController } from './api/controllers/SystemController.js';
 import { TargetController } from './api/controllers/TargetController.js';
@@ -14,6 +16,7 @@ import { InMemoryTargetRepository } from './repositories/memory/InMemoryTargetRe
 import { InMemoryTestRunRepository } from './repositories/memory/InMemoryTestRunRepository.js';
 import { PostgresTargetRepository } from './repositories/postgres/PostgresTargetRepository.js';
 import { PostgresTestRunRepository } from './repositories/postgres/PostgresTestRunRepository.js';
+import { AnalysisService } from './services/AnalysisService.js';
 import { LoadTestService } from './services/LoadTestService.js';
 import { ReportService } from './services/ReportService.js';
 import { ServerMetricsService } from './services/ServerMetricsService.js';
@@ -69,7 +72,13 @@ export async function buildServer(config, logger, overrides = {}) {
   });
   const reports = new ReportService({
     loadTests,
+    runs,
     store: new StaticReportStore(config.storage.reportsDir),
+  });
+  const analyses = new AnalysisService({
+    loadTests,
+    runs,
+    aiClient: overrides.aiClient ?? createAiClient(config.ai, logger),
   });
   const serverMetrics = new ServerMetricsService();
 
@@ -82,11 +91,15 @@ export async function buildServer(config, logger, overrides = {}) {
   for (const event of ['started', 'finished', 'deleted']) {
     loadTests.on(event, () => historyCache.invalidate());
   }
-  loadTests.on('deleted', (id) => {
+  // Revalidación bajo demanda del SSG: al borrar la prueba o al añadirle el análisis
+  // con IA, el reporte estático queda viejo y se regenera en la próxima visita.
+  const discardReport = (id) => {
     reports.removeGenerated(id).catch((error) => {
       logger.error({ err: error, runId: id }, 'No se pudo borrar el reporte generado');
     });
-  });
+  };
+  loadTests.on('deleted', discardReport);
+  analyses.on('created', discardReport);
 
   const app = createApp({
     config,
@@ -94,6 +107,7 @@ export async function buildServer(config, logger, overrides = {}) {
     serverMetrics,
     controllers: {
       loadTest: new LoadTestController({ loadTests, reports }),
+      analysis: new AnalysisController({ analyses }),
       target: new TargetController({ targets: targetService }),
       view: new ViewController({ loadTests, reports, historyCache }),
       system: new SystemController({ serverMetrics, runs }),

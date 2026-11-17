@@ -6,10 +6,12 @@ import { ConflictError } from '../shared/errors.js';
 /** Reportes de corridas terminadas, que ya no cambian y por eso se generan una sola vez. */
 export class ReportService {
   #loadTests;
+  #runs;
   #store;
 
-  constructor({ loadTests, store }) {
+  constructor({ loadTests, runs, store }) {
     this.#loadTests = loadTests;
+    this.#runs = runs;
     this.#store = store;
   }
 
@@ -18,15 +20,21 @@ export class ReportService {
   }
 
   async pdfPath(id) {
-    return this.#store.ensure(`${id}.pdf`, async () => renderReportPdf(await this.#finishedRun(id)));
+    return this.#store.ensure(`${id}.pdf`, async () => renderReportPdf(...(await this.#reportData(id))));
   }
 
   async htmlPath(id) {
-    return this.#store.ensure(`${id}.html`, async () => renderReportPage(await this.#finishedRun(id)));
+    return this.#store.ensure(`${id}.html`, async () => renderReportPage(...(await this.#reportData(id))));
   }
 
   removeGenerated(id) {
     return Promise.all([this.#store.remove(`${id}.pdf`), this.#store.remove(`${id}.html`)]);
+  }
+
+  /** La corrida y, si ya existe, su análisis con IA. */
+  async #reportData(id) {
+    const run = await this.#finishedRun(id);
+    return [run, await this.#runs.findAnalysis(id)];
   }
 
   async #finishedRun(id) {

@@ -15,6 +15,8 @@ const CONTRACT_PATH = fileURLToPath(new URL('../contract/openapi.yaml', import.m
 export function createApp({ config, controllers, serverMetrics, logger }) {
   const app = express();
   const writeLimiter = createRateLimiter(config.limits.rateLimitPerMinute);
+  // Límite propio para la IA: cuida la cuota gratuita de Gemini y Groq.
+  const aiLimiter = createRateLimiter(config.ai.rateLimitPerMinute);
 
   app.disable('x-powered-by');
   app.use(requestTiming(serverMetrics));
@@ -32,7 +34,7 @@ export function createApp({ config, controllers, serverMetrics, logger }) {
   app.get('/health', controllers.system.health);
   // Contract-first: el frontend descarga de aquí el contrato con el que se prueba.
   app.get('/api/v1/openapi.yaml', (_req, res) => res.type('application/yaml').sendFile(CONTRACT_PATH));
-  app.use('/api/v1', apiRoutes({ controllers, limits: config.limits, writeLimiter }));
+  app.use('/api/v1', apiRoutes({ controllers, limits: config.limits, writeLimiter, aiLimiter }));
   app.use('/views', viewRoutes({ controller: controllers.view }));
 
   app.use(notFoundHandler);

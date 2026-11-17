@@ -12,7 +12,27 @@ import { createLogger } from '../../src/shared/logger.js';
 import { createContractValidator } from './contractValidator.js';
 
 // Operaciones definidas en el contrato que todavía no están implementadas.
-const PENDING = new Set(['getAnalysis', 'createAnalysis']);
+const PENDING = new Set();
+
+/** IA simulada: las pruebas no gastan cuota ni dependen de la red. */
+const fakeAiClient = {
+  calls: 0,
+  async generate() {
+    this.calls += 1;
+    return {
+      provider: 'gemini',
+      model: 'gemini-test',
+      fallbackUsed: false,
+      durationMs: 12,
+      content: {
+        verdict: 'healthy',
+        summary: 'La API respondió sin errores durante toda la prueba.',
+        findings: [{ title: 'Latencia estable', detail: 'El p95 se mantuvo bajo 10 ms.', severity: 'info' }],
+        recommendations: ['Repetir la prueba con más usuarios para encontrar el límite.'],
+      },
+    };
+  },
+};
 const UNKNOWN_ID = '7f8c1f5e-3d55-4d43-9a6e-111111111111';
 
 describe('la API cumple el contrato OpenAPI', () => {
@@ -70,6 +90,7 @@ describe('la API cumple el contrato OpenAPI', () => {
     server = await buildServer(config, createLogger('silent'), {
       policy: { resolve },
       targetService: { fetchFile: async () => token },
+      aiClient: fakeAiClient,
     });
     server.setVerificationToken = (value) => {
       token = value;
@@ -119,6 +140,27 @@ describe('la API cumple el contrato OpenAPI', () => {
 
     const report = await call('GET', '/api/v1/load-tests/{id}/report', { params: { id: baseline.id } });
     assert.equal(report.status, 200);
+
+    // Análisis con IA: no existe, se genera una vez y luego se sirve guardado.
+    const analysisPath = '/api/v1/load-tests/{id}/analysis';
+    assert.equal((await call('GET', analysisPath, { params: { id: baseline.id } })).body.error.code, 'ANALYSIS_NOT_FOUND');
+    const reportBefore = await (await fetch(`${apiUrl}/views/reports/${baseline.id}`)).text();
+    assert.equal(reportBefore.includes('Análisis con IA'), false);
+
+    const created = await call('POST', analysisPath, { params: { id: baseline.id } });
+    assert.equal(created.status, 200);
+    assert.equal(created.body.data.runId, baseline.id);
+    const again = await call('POST', analysisPath, { params: { id: baseline.id } });
+    assert.deepEqual(again.body.data, created.body.data);
+    assert.equal(fakeAiClient.calls, 1, 'el segundo POST devuelve el análisis guardado');
+    assert.equal((await call('GET', analysisPath, { params: { id: baseline.id } })).status, 200);
+    assert.equal((await call('POST', analysisPath, { params: { id: UNKNOWN_ID } })).status, 404);
+
+    // El reporte estático se regeneró para incluir el análisis.
+    const reportAfter = await (await fetch(`${apiUrl}/views/reports/${baseline.id}`)).text();
+    assert.match(reportAfter, /Análisis con IA/);
+    const pdf = await fetch(`${apiUrl}/api/v1/load-tests/${baseline.id}/report?format=pdf`);
+    assert.equal(pdf.status, 200);
 
     assert.equal((await call('DELETE', '/api/v1/load-tests/{id}', { params: { id: candidate.id } })).status, 204);
     assert.equal((await call('DELETE', '/api/v1/load-tests/{id}', { params: { id: candidate.id } })).status, 404);
