@@ -30,7 +30,8 @@ const styles = `
     --good: #0b7a4b;
     --bad: #c62f2f;
   }
-  @media (prefers-color-scheme: dark) { :root { ${DARK_TOKENS} } }
+  /* Claro por defecto; oscuro solo si el usuario lo elige (ver theme.client.js). */
+  :root[data-theme="dark"] { ${DARK_TOKENS} }
 
   * { box-sizing: border-box; }
   body {
@@ -80,6 +81,7 @@ const styles = `
   form.compare label { display: grid; gap: 4px; font-size: 13px; color: var(--text-secondary); flex: 1 1 260px; min-width: 0; }
   select { width: 100%; padding: 8px; font: inherit; color: inherit; background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; }
   button { padding: 9px 16px; font: inherit; color: #fff; background: #1f65b8; border: 0; border-radius: 6px; cursor: pointer; }
+  button.theme-toggle { padding: 4px 10px; font-size: 13px; color: var(--text-primary); background: transparent; border: 1px solid var(--border); }
   footer { max-width: 1100px; margin: auto; padding: 0 16px 32px; font-size: 13px; color: var(--text-secondary); }
 `;
 
@@ -91,6 +93,7 @@ export function layout({ title, content, strategy }) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} · Testeador de Carga</title>
   <style>${trusted(styles)}</style>
+  <script src="/views/theme.js"></script>
 </head>
 <body>
   <header class="top">
@@ -98,6 +101,7 @@ export function layout({ title, content, strategy }) {
       <strong>Testeador de Carga Visual</strong>
       <a href="/views/history">Historial</a>
       <a href="/views/compare">Comparar</a>
+      <button type="button" class="theme-toggle" data-theme-toggle hidden>Modo oscuro</button>
     </nav>
   </header>
   <main>${content}</main>

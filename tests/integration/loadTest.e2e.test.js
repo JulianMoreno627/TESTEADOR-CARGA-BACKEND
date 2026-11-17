@@ -240,6 +240,11 @@ describe('flujo completo de una prueba de carga', () => {
     assert.equal(report.headers.get('x-render-strategy'), 'SSG');
     assert.match(reportHtml, /<svg/);
     assert.equal(reportHtml.includes('<b>nuevo</b>'), false, 'el nombre se escapa');
+    assert.ok(reportHtml.includes('<script src="/views/theme.js"></script>'), 'carga el script del tema');
+    assert.equal(reportHtml.includes('prefers-color-scheme'), false, 'claro por defecto, sin seguir al sistema operativo');
+    const themeScript = await fetch(`${apiUrl}/views/theme.js`);
+    assert.match(themeScript.headers.get('content-type'), /javascript/);
+    assert.match(await themeScript.text(), /localStorage/);
     const etag = report.headers.get('etag');
     assert.ok(etag);
     // Con http.get porque fetch añade Cache-Control: no-cache, que obliga a responder 200.
