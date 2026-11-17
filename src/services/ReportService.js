@@ -1,5 +1,4 @@
 import { isFinished } from '../domain/runStatus.js';
-import { renderReportPdf } from '../rendering/pdf/reportPdf.js';
 import { renderReportPage } from '../rendering/views/reportPage.js';
 import { ConflictError } from '../shared/errors.js';
 
@@ -8,11 +7,14 @@ export class ReportService {
   #loadTests;
   #runs;
   #store;
+  #pdfPool;
 
-  constructor({ loadTests, runs, store }) {
+  /** @param {{ pdfPool: import('../workers/WorkerPool.js').WorkerPool }} deps */
+  constructor({ loadTests, runs, store, pdfPool }) {
     this.#loadTests = loadTests;
     this.#runs = runs;
     this.#store = store;
+    this.#pdfPool = pdfPool;
   }
 
   buildJson(id) {
@@ -20,7 +22,11 @@ export class ReportService {
   }
 
   async pdfPath(id) {
-    return this.#store.ensure(`${id}.pdf`, async () => renderReportPdf(...(await this.#reportData(id))));
+    return this.#store.ensure(`${id}.pdf`, async () => {
+      const [run, analysis] = await this.#reportData(id);
+      // El PDF se dibuja en un Worker Thread del pool, no en el hilo principal.
+      return Buffer.from(await this.#pdfPool.run({ run, analysis }));
+    });
   }
 
   async htmlPath(id) {

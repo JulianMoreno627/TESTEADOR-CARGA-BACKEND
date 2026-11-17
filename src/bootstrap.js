@@ -22,9 +22,13 @@ import { ReportService } from './services/ReportService.js';
 import { ServerMetricsService } from './services/ServerMetricsService.js';
 import { TargetPolicy } from './services/TargetPolicy.js';
 import { TargetService } from './services/TargetService.js';
+import { WorkerPool } from './workers/WorkerPool.js';
 
 const HISTORY_PAGE_SIZE = 50;
 const HISTORY_ISR_TTL_MS = 30_000;
+const PDF_WORKER = new URL('./rendering/pdf/pdfWorker.js', import.meta.url);
+// Un solo hilo basta: los PDF se generan una vez por corrida y luego se sirven desde disco.
+const PDF_WORKERS = 1;
 
 async function createRepositories(config, logger) {
   if (!config.database.url) {
@@ -70,10 +74,12 @@ export async function buildServer(config, logger, overrides = {}) {
     maxConcurrentTests: config.limits.maxConcurrentTests,
     logger,
   });
+  const pdfPool = new WorkerPool({ script: PDF_WORKER, size: PDF_WORKERS });
   const reports = new ReportService({
     loadTests,
     runs,
     store: new StaticReportStore(config.storage.reportsDir),
+    pdfPool,
   });
   const analyses = new AnalysisService({
     loadTests,
@@ -127,6 +133,8 @@ export async function buildServer(config, logger, overrides = {}) {
   serverMetrics.registerGauge('activeWorkers', () => loadTests.activeWorkerCount);
   serverMetrics.registerGauge('inFlightRequests', () => loadTests.inFlightRequests);
   serverMetrics.registerGauge('socketClients', () => gateway.clientCount);
+  serverMetrics.registerGauge('pdfWorkersBusy', () => pdfPool.stats.busy);
+  serverMetrics.registerGauge('pdfTasksQueued', () => pdfPool.stats.queued);
 
   const interrupted = await loadTests.recoverInterruptedRuns();
   if (interrupted > 0) logger.warn({ interrupted }, 'Corridas interrumpidas marcadas como fallidas');
@@ -150,6 +158,7 @@ export async function buildServer(config, logger, overrides = {}) {
     async shutdown() {
       await loadTests.shutdown();
       serverMetrics.stop();
+      await pdfPool.close();
       // gateway.close() también cierra el servidor HTTP asociado.
       await gateway.close();
       await repositories.close();
