@@ -36,6 +36,25 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Health' }
 
+  /health/live:
+    get:
+      tags: [system]
+      operationId: getLiveness
+      summary: El proceso responde (no consulta la base de datos)
+      description: |
+        Para el health check de Render. No toca la base de datos, así Neon puede
+        suspenderse cuando no hay uso y no gasta horas de cómputo del plan gratuito.
+      responses:
+        '200':
+          description: El proceso está vivo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { const: ok }
+
   /api/v1/metrics:
     get:
       tags: [system]
