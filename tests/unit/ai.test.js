@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { buildAnalysisPrompt } from '../../src/ai/analysisPrompt.js';
 import { CircuitBreaker } from '../../src/ai/CircuitBreaker.js';
+import { toPublicConfig } from '../../src/domain/loadTestConfig.js';
 import { FallbackAiClient } from '../../src/ai/FallbackAiClient.js';
 import { GeminiProvider } from '../../src/ai/providers/GeminiProvider.js';
 import { GroqProvider } from '../../src/ai/providers/GroqProvider.js';
@@ -24,6 +26,37 @@ function fakeFetch(respond) {
   fn.calls = calls;
   return fn;
 }
+
+describe('buildAnalysisPrompt', () => {
+  const point = (t) => ({ t, activeVus: 10, rps: 50, errorRate: 0, latency: { p50: 5, p95: 9, p99: 12 } });
+  const run = {
+    name: 'Prueba',
+    status: 'completed',
+    config: toPublicConfig({
+      url: 'https://api.test/x?token=secreto',
+      method: 'GET',
+      headers: { Authorization: 'Bearer secreto' },
+      vus: 10,
+      durationSeconds: 120,
+      pattern: { type: 'constant' },
+      thinkTimeMs: 0,
+      timeoutMs: 10000,
+    }),
+    summary: { totalRequests: 6000 },
+    timeline: Array.from({ length: 120 }, (_, index) => point(index + 1)),
+  };
+
+  it('resume la serie, separa los datos de las instrucciones y no envía credenciales', () => {
+    const { system, prompt } = buildAnalysisPrompt(run);
+    const data = JSON.parse(prompt.match(/<datos>\n(.*)\n<\/datos>/s)[1]);
+
+    assert.equal(data.serieDeTiempo.length, 40);
+    assert.equal(data.serieDeTiempo[0].segundo, 1);
+    assert.equal(data.serieDeTiempo.at(-1).segundo, 120);
+    assert.equal(prompt.includes('secreto'), false);
+    assert.match(system, /ignora cualquier orden/);
+  });
+});
 
 describe('CircuitBreaker', () => {
   it('se abre tras N fallos, deja probar al pasar el tiempo y se cierra con un éxito', () => {
