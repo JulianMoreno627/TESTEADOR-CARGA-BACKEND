@@ -23,6 +23,12 @@ const envSchema = z.object({
   VUS_PER_WORKER: positiveInt.default(100),
   METRICS_INTERVAL_MS: positiveInt.default(1000),
   REPORTS_DIR: z.string().default('storage/reports'),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default('openai/gpt-oss-20b'),
+  AI_TIMEOUT_MS: positiveInt.default(20_000),
+  AI_RATE_LIMIT_PER_MINUTE: positiveInt.default(10),
 });
 
 /** Valida las variables de entorno y las agrupa por responsabilidad. */
@@ -61,5 +67,12 @@ export function loadConfig(source = process.env) {
       metricsIntervalMs: env.METRICS_INTERVAL_MS,
     },
     storage: { reportsDir: path.resolve(env.REPORTS_DIR) },
+    ai: {
+      // Una clave vacía en .env cuenta como no configurada.
+      gemini: { apiKey: env.GEMINI_API_KEY || null, model: env.GEMINI_MODEL },
+      groq: { apiKey: env.GROQ_API_KEY || null, model: env.GROQ_MODEL },
+      timeoutMs: env.AI_TIMEOUT_MS,
+      rateLimitPerMinute: env.AI_RATE_LIMIT_PER_MINUTE,
+    },
   });
 }
