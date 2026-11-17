@@ -9,7 +9,8 @@ const defaultMaxWorkers = Math.min(4, Math.max(1, os.availableParallelism() - 1)
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  HOST: z.string().default('127.0.0.1'),
+  HOST: z.string().optional(),
+  TRUST_PROXY: booleanString.optional(),
   PORT: z.coerce.number().int().min(0).max(65535).default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'silent']).default('info'),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
@@ -49,7 +50,9 @@ export function loadConfig(source = process.env) {
     isProduction,
     logLevel: env.LOG_LEVEL,
     server: {
-      host: env.HOST,
+      // Render exige escuchar en 0.0.0.0; en desarrollo basta con la máquina local.
+      host: env.HOST ?? (isProduction ? '0.0.0.0' : '127.0.0.1'),
+      trustProxy: env.TRUST_PROXY ?? isProduction,
       port: env.PORT,
       corsOrigins: env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean),
     },

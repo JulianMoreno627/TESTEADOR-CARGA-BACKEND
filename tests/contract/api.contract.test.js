@@ -106,6 +106,7 @@ describe('la API cumple el contrato OpenAPI', () => {
 
   it('sistema', async () => {
     assert.equal((await call('GET', '/health')).status, 200);
+    assert.equal((await call('GET', '/health/live')).status, 200);
     assert.equal((await call('GET', '/api/v1/metrics')).status, 200);
   });
 

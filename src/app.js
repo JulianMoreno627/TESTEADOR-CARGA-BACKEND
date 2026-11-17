@@ -19,6 +19,8 @@ export function createApp({ config, controllers, serverMetrics, logger }) {
   const aiLimiter = createRateLimiter(config.ai.rateLimitPerMinute);
 
   app.disable('x-powered-by');
+  // Detrás del proxy de Render: así el límite de solicitudes distingue a cada cliente por su IP real.
+  if (config.server.trustProxy) app.set('trust proxy', 1);
   app.use(requestTiming(serverMetrics));
   app.use(helmet({
     contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
@@ -32,6 +34,7 @@ export function createApp({ config, controllers, serverMetrics, logger }) {
 
   app.get('/', (_req, res) => res.redirect('/views/history'));
   app.get('/health', controllers.system.health);
+  app.get('/health/live', (_req, res) => res.json({ status: 'ok' }));
   // Contract-first: el frontend descarga de aquí el contrato con el que se prueba.
   app.get('/api/v1/openapi.yaml', (_req, res) => res.type('application/yaml').sendFile(CONTRACT_PATH));
   app.use('/api/v1', apiRoutes({ controllers, limits: config.limits, writeLimiter, aiLimiter }));
