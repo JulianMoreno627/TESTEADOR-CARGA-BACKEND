@@ -3,6 +3,7 @@ import { RunStatus } from '../../domain/runStatus.js';
 /** Historial en memoria: para desarrollo sin base de datos y para las pruebas. */
 export class InMemoryTestRunRepository {
   #runs = new Map();
+  #analyses = new Map();
 
   async save(run) {
     this.#runs.set(run.id, structuredClone(run));
@@ -19,7 +20,17 @@ export class InMemoryTestRunRepository {
     return { items, total: sorted.length };
   }
 
+  async saveAnalysis(id, analysis) {
+    this.#analyses.set(id, structuredClone(analysis));
+  }
+
+  async findAnalysis(id) {
+    const analysis = this.#analyses.get(id);
+    return analysis ? structuredClone(analysis) : null;
+  }
+
   async delete(id) {
+    this.#analyses.delete(id);
     return this.#runs.delete(id);
   }
 

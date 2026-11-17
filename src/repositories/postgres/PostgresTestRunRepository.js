@@ -68,6 +68,15 @@ export class PostgresTestRunRepository {
     return { items: page.rows.map(toRun), total: count.rows[0].total };
   }
 
+  async saveAnalysis(id, analysis) {
+    await this.#pool.query('UPDATE test_runs SET ai_analysis = $2 WHERE id = $1', [id, JSON.stringify(analysis)]);
+  }
+
+  async findAnalysis(id) {
+    const { rows } = await this.#pool.query('SELECT ai_analysis FROM test_runs WHERE id = $1', [id]);
+    return rows[0]?.ai_analysis ?? null;
+  }
+
   async delete(id) {
     const { rowCount } = await this.#pool.query('DELETE FROM test_runs WHERE id = $1', [id]);
     return rowCount > 0;
