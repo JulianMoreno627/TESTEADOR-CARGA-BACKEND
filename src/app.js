@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
@@ -7,6 +8,8 @@ import { createRateLimiter } from './api/middlewares/rateLimiter.js';
 import { requestTiming } from './api/middlewares/requestTiming.js';
 import { apiRoutes } from './api/routes/index.js';
 import { viewRoutes } from './api/routes/view.routes.js';
+
+const CONTRACT_PATH = fileURLToPath(new URL('../contract/openapi.yaml', import.meta.url));
 
 /** Construye la aplicación Express. No abre puertos, así se puede probar aislada. */
 export function createApp({ config, controllers, serverMetrics, logger }) {
@@ -27,6 +30,8 @@ export function createApp({ config, controllers, serverMetrics, logger }) {
 
   app.get('/', (_req, res) => res.redirect('/views/history'));
   app.get('/health', controllers.system.health);
+  // Contract-first: el frontend descarga de aquí el contrato con el que se prueba.
+  app.get('/api/v1/openapi.yaml', (_req, res) => res.type('application/yaml').sendFile(CONTRACT_PATH));
   app.use('/api/v1', apiRoutes({ controllers, limits: config.limits, writeLimiter }));
   app.use('/views', viewRoutes({ controller: controllers.view }));
 
