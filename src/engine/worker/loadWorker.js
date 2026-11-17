@@ -1,4 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads';
+import { SharedControl } from '../SharedControl.js';
 import { BatchCollector } from './BatchCollector.js';
 import { HttpRequester } from './HttpRequester.js';
 import { VirtualUserPool } from './VirtualUserPool.js';
@@ -7,16 +8,21 @@ import { VirtualUserPool } from './VirtualUserPool.js';
  * Punto de entrada del Worker Thread. Genera tráfico fuera del hilo principal,
  * de modo que la API y los WebSockets siguen respondiendo durante la prueba.
  *
- * Principal -> worker: { type: 'set-vus', count } | { type: 'stop' }
- * Worker -> principal: { type: 'ready' } | { type: 'batch', batch } | { type: 'stopped' }
+ * Se comunica con el hilo principal de dos formas:
+ * - Mensajes (se copian y llegan en orden):
+ *     principal -> worker: { type: 'set-vus', count } | { type: 'stop' }
+ *     worker -> principal: { type: 'ready' } | { type: 'batch', batch } | { type: 'stopped' }
+ * - Memoria compartida (SharedControl): bandera de parada y contadores en vivo.
  */
-const { runId, request, thinkTimeMs, pinnedAddresses, flushIntervalMs } = workerData;
+const { runId, request, thinkTimeMs, pinnedAddresses, flushIntervalMs, controlBuffer, workerIndex, workerCount } = workerData;
 
 const collector = new BatchCollector();
 const pool = new VirtualUserPool({
   requester: new HttpRequester({ ...request, runId, pinnedAddresses }),
   collector,
   thinkTimeMs,
+  control: new SharedControl(controlBuffer, workerCount),
+  workerIndex,
 });
 
 const flush = (activeVus = pool.activeCount) => {

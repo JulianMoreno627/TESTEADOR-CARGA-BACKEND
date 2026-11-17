@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { Worker } from 'node:worker_threads';
 import { createLoadPattern } from '../domain/loadPatterns.js';
+import { SharedControl } from './SharedControl.js';
 
 const WORKER_ENTRY = new URL('./worker/loadWorker.js', import.meta.url);
 const CONTROL_INTERVAL_MS = 250;
@@ -31,6 +32,7 @@ export class LoadEngine extends EventEmitter {
   #startedAt = null;
   #elapsedAtEnd = null;
   #finishing = null;
+  #control;
   targetVus = 0;
 
   constructor({ runId, config, pinnedAddresses, maxWorkers, vusPerWorker }) {
@@ -40,6 +42,12 @@ export class LoadEngine extends EventEmitter {
     this.#pinnedAddresses = pinnedAddresses;
     this.#workerCount = Math.min(maxWorkers, Math.max(1, Math.ceil(config.vus / vusPerWorker)));
     this.#pattern = createLoadPattern(config);
+    this.#control = SharedControl.create(this.#workerCount);
+  }
+
+  /** Lectura instantánea desde la memoria compartida, sin esperar el próximo lote. */
+  liveCounters() {
+    return this.#control.totals();
   }
 
   get workerCount() {
@@ -103,6 +111,10 @@ export class LoadEngine extends EventEmitter {
           thinkTimeMs,
           pinnedAddresses: this.#pinnedAddresses,
           flushIntervalMs: WORKER_FLUSH_INTERVAL_MS,
+          // Se comparte, no se copia: el worker y este hilo ven la misma memoria.
+          controlBuffer: this.#control.buffer,
+          workerIndex: index,
+          workerCount: this.#workerCount,
         },
       });
       const worker = { thread, stopped: null };
@@ -144,6 +156,8 @@ export class LoadEngine extends EventEmitter {
     this.#finishing ??= (async () => {
       this.#elapsedAtEnd = this.elapsedSeconds;
       clearInterval(this.#controlTimer);
+      // Efecto inmediato en todos los workers; el mensaje "stop" llega después y cierra en orden.
+      this.#control.requestStop();
       await this.#shutdownWorkers();
       this.emit('finished', { reason, error });
     })();

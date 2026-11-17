@@ -16,11 +16,16 @@ export class VirtualUserPool {
   #abort = new AbortController();
   #loops = new Set();
   #target = 0;
+  #control;
+  #workerIndex;
 
-  constructor({ requester, collector, thinkTimeMs }) {
+  /** @param {{ control: import('../SharedControl.js').SharedControl, workerIndex: number }} options */
+  constructor({ requester, collector, thinkTimeMs, control, workerIndex }) {
     this.#requester = requester;
     this.#collector = collector;
     this.#thinkTimeMs = thinkTimeMs;
+    this.#control = control;
+    this.#workerIndex = workerIndex;
   }
 
   get activeCount() {
@@ -42,6 +47,7 @@ export class VirtualUserPool {
   #spawn() {
     const loop = {};
     this.#loops.add(loop);
+    this.#control.setActiveVus(this.#workerIndex, this.#loops.size);
     loop.done = this.#run(loop);
   }
 
@@ -49,8 +55,16 @@ export class VirtualUserPool {
     const { signal } = this.#abort;
 
     try {
-      while (!signal.aborted && this.#loops.size <= this.#target) {
-        const result = await this.#requester.execute(signal);
+      // La bandera compartida se lee entre peticiones: basta con que el hilo principal
+      // la active para que ningún usuario envíe una petición más.
+      while (!signal.aborted && !this.#control.stopRequested && this.#loops.size <= this.#target) {
+        this.#control.requestStarted(this.#workerIndex);
+        let result;
+        try {
+          result = await this.#requester.execute(signal);
+        } finally {
+          this.#control.requestFinished(this.#workerIndex);
+        }
         if (result.aborted) break;
 
         this.#collector.record(result);
@@ -63,6 +77,7 @@ export class VirtualUserPool {
       if (error.name !== 'AbortError') throw error;
     } finally {
       this.#loops.delete(loop);
+      this.#control.setActiveVus(this.#workerIndex, this.#loops.size);
     }
   }
 }
