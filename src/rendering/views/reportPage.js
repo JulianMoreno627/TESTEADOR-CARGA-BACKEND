@@ -111,7 +111,40 @@ function results({ summary, timeline }) {
   `;
 }
 
-export function renderReportPage(run) {
+const AI_VERDICTS = {
+  healthy: { label: 'Saludable', badge: 'is-completed' },
+  degraded: { label: 'Degradada', badge: 'is-mixed' },
+  critical: { label: 'Crítica', badge: 'is-failed' },
+};
+const SEVERITY_BADGES = { info: 'is-unchanged', warning: 'is-mixed', critical: 'is-failed' };
+const SEVERITY_LABELS = { info: 'Información', warning: 'Advertencia', critical: 'Crítico' };
+
+/** El texto viene de un modelo de IA: se trata como dato y se escapa como cualquier otro. */
+function aiSection(analysis) {
+  if (!analysis) return null;
+  const { content } = analysis;
+  const verdict = AI_VERDICTS[content.verdict];
+  return html`
+    <h2>Análisis con IA</h2>
+    <div class="card">
+      <p><span class="badge ${verdict.badge}">${verdict.label}</span></p>
+      <p>${content.summary}</p>
+      ${content.findings.length > 0
+        ? html`<h3>Hallazgos</h3><ul>${content.findings.map((finding) => html`
+            <li><span class="badge ${SEVERITY_BADGES[finding.severity]}">${SEVERITY_LABELS[finding.severity]}</span>
+              <strong>${finding.title}.</strong> ${finding.detail}</li>
+          `)}</ul>`
+        : null}
+      ${content.recommendations.length > 0
+        ? html`<h3>Recomendaciones</h3><ul>${content.recommendations.map((item) => html`<li>${item}</li>`)}</ul>`
+        : null}
+      <p class="muted">Generado por ${analysis.provider} (${analysis.model})${analysis.fallbackUsed ? ' como respaldo' : ''} · ${formatDate(analysis.generatedAt)}.
+        La IA puede equivocarse: contrasta con las métricas.</p>
+    </div>
+  `;
+}
+
+export function renderReportPage(run, analysis = null) {
   const { config } = run;
   return layout({
     title: run.name,
@@ -125,6 +158,7 @@ export function renderReportPage(run) {
         ${formatDate(run.startedAt)}
       </p>
       ${run.error ? html`<p class="card">Error: ${run.error}</p>` : null}
+      ${aiSection(analysis)}
       ${results(run)}
     `,
   });

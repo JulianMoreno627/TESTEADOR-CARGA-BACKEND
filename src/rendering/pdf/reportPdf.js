@@ -65,6 +65,23 @@ class PdfWriter {
     this.y -= size + 6;
   }
 
+  /** Texto largo repartido en líneas que caben en el ancho de la página. */
+  paragraph(value, { size = 10, bold = false, indent = 0 } = {}) {
+    const font = bold ? this.fonts.bold : this.fonts.regular;
+    const maxWidth = CONTENT_WIDTH - indent;
+    let line = '';
+    for (const word of toPdfText(value).split(/\s+/).filter(Boolean)) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+        this.text(line, { size, bold, x: PAGE.margin + indent });
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) this.text(line, { size, bold, x: PAGE.margin + indent });
+  }
+
   heading(value) {
     this.y -= 12;
     this.ensureSpace(60);
@@ -214,8 +231,32 @@ function writeResults(writer, summary, timeline) {
   }
 }
 
+const AI_VERDICT_LABELS = { healthy: 'Saludable', degraded: 'Degradada', critical: 'Crítica' };
+const SEVERITY_LABELS = { info: 'Información', warning: 'Advertencia', critical: 'Crítico' };
+
+function writeAnalysis(writer, analysis) {
+  const { content } = analysis;
+  writer.heading(`Análisis con IA: ${AI_VERDICT_LABELS[content.verdict]}`);
+  writer.paragraph(content.summary);
+
+  if (content.findings.length > 0) {
+    writer.text('Hallazgos', { bold: true });
+    for (const finding of content.findings) {
+      writer.paragraph(`[${SEVERITY_LABELS[finding.severity]}] ${finding.title}. ${finding.detail}`, { indent: 10 });
+    }
+  }
+  if (content.recommendations.length > 0) {
+    writer.text('Recomendaciones', { bold: true });
+    content.recommendations.forEach((item) => writer.paragraph(`- ${item}`, { indent: 10 }));
+  }
+  writer.paragraph(
+    `Generado por ${analysis.provider} (${analysis.model})${analysis.fallbackUsed ? ' como respaldo' : ''}. La IA puede equivocarse: contrasta con las métricas.`,
+    { size: 8 },
+  );
+}
+
 /** @returns {Promise<Uint8Array>} el PDF del reporte. */
-export async function renderReportPdf(run) {
+export async function renderReportPdf(run, analysis = null) {
   const document = await PDFDocument.create();
   document.setTitle(toPdfText(`Reporte de carga: ${run.name}`));
   document.setCreator('Testeador de Carga Visual');
@@ -233,6 +274,7 @@ export async function renderReportPdf(run) {
     { color: COLORS.muted },
   );
   if (run.error) writer.text(truncate(`Error: ${run.error}`, 90));
+  if (analysis) writeAnalysis(writer, analysis);
 
   if (run.summary) writeResults(writer, run.summary, run.timeline);
   else writer.text('Esta prueba se interrumpió y no tiene resultados.');
