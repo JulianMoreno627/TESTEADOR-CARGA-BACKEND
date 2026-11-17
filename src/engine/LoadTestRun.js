@@ -28,6 +28,10 @@ export class LoadTestRun extends EventEmitter {
     return this.#engine.workerCount;
   }
 
+  liveCounters() {
+    return this.#engine.liveCounters();
+  }
+
   /** No rechaza: un error al arrancar se refleja como una corrida fallida. */
   async start() {
     try {

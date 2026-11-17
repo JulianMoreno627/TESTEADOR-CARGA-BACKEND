@@ -107,6 +107,8 @@ describe('flujo completo de una prueba de carga', () => {
     assert.equal(metrics.data.gauges.activeLoadTests, 1);
     // 12 VUs a 5 por worker requieren 3 workers.
     assert.equal(metrics.data.gauges.activeWorkers, 3);
+    // Leído de la memoria compartida con los workers, no de los lotes.
+    assert.ok(metrics.data.gauges.inFlightRequests >= 0 && metrics.data.gauges.inFlightRequests <= 12);
 
     const [finishedEvent] = await finished;
     const result = await waitForFinish(run.id);

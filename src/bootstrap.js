@@ -125,6 +125,7 @@ export async function buildServer(config, logger, overrides = {}) {
 
   serverMetrics.registerGauge('activeLoadTests', () => loadTests.activeCount);
   serverMetrics.registerGauge('activeWorkers', () => loadTests.activeWorkerCount);
+  serverMetrics.registerGauge('inFlightRequests', () => loadTests.inFlightRequests);
   serverMetrics.registerGauge('socketClients', () => gateway.clientCount);
 
   const interrupted = await loadTests.recoverInterruptedRuns();

@@ -40,6 +40,13 @@ export class LoadTestService extends EventEmitter {
     return total;
   }
 
+  /** Peticiones en vuelo ahora mismo, leídas de la memoria compartida con los workers. */
+  get inFlightRequests() {
+    let total = 0;
+    for (const run of this.#active.values()) total += run.liveCounters().inFlight;
+    return total;
+  }
+
   /** Corridas que quedaron "running" porque el proceso anterior se cayó. */
   recoverInterruptedRuns() {
     return this.#runs.failInterrupted('El servidor se reinició durante la prueba.');
