@@ -20,8 +20,8 @@ if [ -n "$env_files" ]; then
   status=1
 fi
 
-# Claves de Google (AIza…), Groq (gsk_…) y cadenas de conexión con contraseña hacia Neon.
-if printf '%s\n' "$changes" | grep -E '^\+' | grep -nE 'AIza[0-9A-Za-z_-]{30,}|gsk_[0-9A-Za-z]{20,}|postgres(ql)?://[^:@/ ]+:[^@ ]+@[^ ]*neon\.tech'; then
+# Claves de Google (AIza… o el formato nuevo AQ.…), Groq (gsk_…) y cadenas de conexión con contraseña hacia Neon.
+if printf '%s\n' "$changes" | grep -E '^\+' | grep -nE 'AIza[0-9A-Za-z_-]{30,}|AQ.[0-9A-Za-z_-]{30,}|gsk_[0-9A-Za-z]{20,}|postgres(ql)?://[^:@/ ]+:[^@ ]+@[^ ]*neon\.tech'; then
   echo "Hay algo con forma de clave real en los cambios."
   status=1
 fi
