@@ -13,7 +13,9 @@ Ningún secreto va en el código. Los valores reales se escriben solo en los pan
 
 1. Crea una cuenta en <https://neon.tech> y un proyecto nuevo. Elige **AWS US East 2 (Ohio)**, la misma región que fija `render.yaml` para Render.
 2. En el panel del proyecto pulsa **Connect** y copia la *connection string* con **Connection pooling** activado. Tiene esta forma:
-   `postgresql://<usuario>:<contraseña>@<host-de-neon>/neondb?sslmode=require`
+   `postgresql://<usuario>:<contraseña>@<host-de-neon>/neondb?sslmode=verify-full`
+
+   Neon la entrega terminada en `?sslmode=require&channel_binding=require`. Cambia ese final por `?sslmode=verify-full`: el driver `pg` ignora `channel_binding` y ya trata `require` como `verify-full`, así que escribirlo explícito evita su advertencia de seguridad.
 3. No hace falta crear tablas: el backend aplica las migraciones de `src/database/migrations/` cada vez que arranca.
 
 ## 2. Claves de IA

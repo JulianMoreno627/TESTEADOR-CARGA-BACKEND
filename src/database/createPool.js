@@ -4,7 +4,7 @@ import pg from 'pg';
  * Pool de conexiones. Con Neon gratuito el cómputo se suspende tras unos minutos sin
  * uso: las conexiones inactivas se cierran pronto para no mantenerlo despierto, y
  * la primera consulta tras la suspensión puede tardar un poco más.
- * La cadena de Neon ya trae `sslmode=require`, que pg respeta.
+ * La cadena de Neon debe terminar en `sslmode=verify-full` (conexión cifrada y certificado verificado).
  */
 export function createPool(connectionString, logger) {
   const pool = new pg.Pool({
