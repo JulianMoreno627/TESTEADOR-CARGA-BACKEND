@@ -11,7 +11,7 @@ Ningún secreto va en el código. Los valores reales se escriben solo en los pan
 
 ## 1. Neon: la base de datos
 
-1. Crea una cuenta en <https://neon.tech> y un proyecto nuevo. Elige la región más cercana a la que usarás en Render; por ejemplo, AWS US East (Ohio) para Render Ohio.
+1. Crea una cuenta en <https://neon.tech> y un proyecto nuevo. Elige **AWS US East 2 (Ohio)**, la misma región que fija `render.yaml` para Render.
 2. En el panel del proyecto pulsa **Connect** y copia la *connection string* con **Connection pooling** activado. Tiene esta forma:
    `postgresql://<usuario>:<contraseña>@<host-de-neon>/neondb?sslmode=require`
 3. No hace falta crear tablas: el backend aplica las migraciones de `src/database/migrations/` cada vez que arranca.

@@ -6,6 +6,8 @@ services:
     name: testeador-carga-api
     runtime: node
     plan: free
+    # Misma región que la base de datos de Neon (AWS US East 2, Ohio).
+    region: ohio
     buildCommand: npm ci --omit=dev
     startCommand: npm start
     # No consulta la base de datos: así Neon puede suspenderse cuando no hay uso.
@@ -40,6 +42,8 @@ services:
     name: testeador-carga-demo
     runtime: node
     plan: free
+    # Misma región que la base de datos de Neon (AWS US East 2, Ohio).
+    region: ohio
     buildCommand: "true"
     startCommand: node scripts/demo-target.js
     healthCheckPath: /fast
