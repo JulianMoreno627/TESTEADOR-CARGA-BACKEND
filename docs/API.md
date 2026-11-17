@@ -1,6 +1,8 @@
 # Contrato de la API
 
-Referencia para construir el frontend. URL base en desarrollo: `http://localhost:3000`. El origen del frontend debe estar en `CORS_ORIGINS` (por defecto, `http://localhost:5173`).
+Guía del contrato para construir el frontend. La fuente de verdad es [contract/openapi.yaml](../contract/openapi.yaml), publicado también en `GET /api/v1/openapi.yaml`; si este documento y el contrato no coinciden, manda el contrato.
+
+URL base en desarrollo: `http://localhost:3000`; en producción, `https://testeador-carga-api.onrender.com`. El origen del frontend debe estar en `CORS_ORIGINS`.
 
 ## Formato de respuesta
 
@@ -18,11 +20,12 @@ En `VALIDATION_ERROR`, `details` es una lista de `{ "field": "vus", "message": "
 |---|---|
 | 400 | `BAD_REQUEST` |
 | 403 | `TARGET_NOT_VERIFIED`, `TARGET_PRIVATE_NETWORK`, `TARGET_LOCALHOST_DISABLED` |
-| 404 | `NOT_FOUND` |
+| 404 | `NOT_FOUND`, `ANALYSIS_NOT_FOUND` |
 | 409 | `TEST_NOT_RUNNING`, `TEST_RUNNING`, `TEST_NOT_COMPARABLE`, `REPORT_NOT_READY`, `TARGET_VERIFICATION_FAILED` |
 | 422 | `VALIDATION_ERROR`, `TARGET_UNRESOLVABLE`, `TARGET_VERIFICATION_NOT_NEEDED` |
 | 429 | `CAPACITY_EXCEEDED`, `RATE_LIMITED` |
 | 500 | `INTERNAL_ERROR` |
+| 503 | `AI_UNAVAILABLE` |
 
 ## Pruebas de carga
 
@@ -140,6 +143,32 @@ Las respuestas 4xx y 5xx cuentan como error. Los fallos de red también, pero no
 }
 ```
 
+## Análisis con IA
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/v1/load-tests/:id/analysis` | El análisis ya generado; 404 `ANALYSIS_NOT_FOUND` si aún no existe |
+| `POST` | `/api/v1/load-tests/:id/analysis` | Lo genera con Gemini (Groq de respaldo). Si ya existe, devuelve el guardado sin llamar a la IA |
+
+La prueba debe haber terminado y tener resultados; si no, responde 409. Si ningún proveedor responde, devuelve 503 `AI_UNAVAILABLE`. Tiene su propio límite de 10 solicitudes por minuto.
+
+```jsonc
+{
+  "runId": "...",
+  "provider": "gemini",          // o "groq"
+  "model": "gemini-3.1-flash-lite",
+  "fallbackUsed": false,          // true si Gemini falló y respondió Groq
+  "generatedAt": "2026-11-17T16:20:00.000Z",
+  "durationMs": 1834,
+  "content": {
+    "verdict": "degraded",         // healthy | degraded | critical
+    "summary": "La API presenta una tasa de error del 10,8 %…",
+    "findings": [{ "title": "…", "detail": "…", "severity": "critical" }],   // info | warning | critical; máximo 6
+    "recommendations": ["…"]     // máximo 6
+  }
+}
+```
+
 ## Dominios verificados
 
 `localhost` no los necesita en desarrollo. Cualquier dominio público debe pasar por este flujo antes de recibir carga:
@@ -189,7 +218,11 @@ socket.on('test:finished', ({ id, status, summary, error, finishedAt }) => {});
 | Método | Ruta | Descripción |
 |---|---|---|
 | `GET` | `/health` | Estado del servidor y de la base de datos (503 si la base falla) |
-| `GET` | `/api/v1/metrics` | Rendimiento del backend |
+| `GET` | `/health/live` | Solo indica que el proceso responde; no consulta la base de datos. Lo usa Render |
+| `GET` | `/api/v1/metrics` | Rendimiento del backend. `gauges` incluye `activeLoadTests`, `activeWorkers`, `inFlightRequests` (leído de la memoria compartida), `socketClients`, `pdfWorkersBusy` y `pdfTasksQueued` |
+| `GET` | `/api/v1/openapi.yaml` | El contrato OpenAPI |
 | `GET` | `/views/history` | Historial en HTML (ISR) |
 | `GET` | `/views/reports/:id` | Reporte en HTML (SSG) |
 | `GET` | `/views/compare?baseline=:id&candidate=:id` | Comparación en HTML (SSR) |
+
+Todas las respuestas llevan la cabecera `Server-Timing` (`total`, y `render` en las vistas). Las vistas añaden `X-Render-Strategy`, y el historial también `X-Cache` (`MISS`, `HIT` o `STALE`). Las tres están expuestas por CORS para que el frontend pueda leerlas.
