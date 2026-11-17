@@ -54,7 +54,7 @@ En producción el backend solo envía carga a dominios verificados, así que la 
 
 1. En <https://vercel.com> elige **Add New → Project** e importa el repositorio `TESTEADOR-CARGA-FRONTEND`.
 2. Añade la variable `VITE_API_URL` con el valor `https://testeador-carga-api.onrender.com`.
-3. Cuando termine el despliegue, copia la URL que asignó Vercel y ponla en `CORS_ORIGINS` del backend en Render. Si necesitas varias, sepáralas con comas.
+3. Cuando termine el despliegue, pon en `CORS_ORIGINS` del backend en Render **todas** las direcciones que Vercel le da al proyecto, separadas por comas. Vercel asigna más de una (por ejemplo `https://testeador-carga-frontend.vercel.app` y `https://testeador-carga-frontend-ruddy.vercel.app`): si falta una, desde esa dirección el navegador bloquea las peticiones por CORS y la app muestra "Sin conexión". Las encuentras en Vercel, en el proyecto → **Domains**.
 
 ## Lo que implica el plan gratuito
 

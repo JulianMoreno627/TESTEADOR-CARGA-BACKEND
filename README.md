@@ -6,7 +6,7 @@ API y motor de carga que simula usuarios concurrentes contra un endpoint propio 
 
 | | |
 |---|---|
-| Frontend (Vercel) | <https://testeador-carga-frontend-ruddy.vercel.app> · [repositorio](https://github.com/JulianMoreno627/TESTEADOR-CARGA-FRONTEND) |
+| Frontend (Vercel) | <https://testeador-carga-frontend.vercel.app> · [repositorio](https://github.com/JulianMoreno627/TESTEADOR-CARGA-FRONTEND) |
 | Backend (Render) | <https://testeador-carga-api.onrender.com> |
 | API de ejemplo verificada | <https://testeador-carga-demo.onrender.com> |
 | Base de datos | PostgreSQL en Neon |
