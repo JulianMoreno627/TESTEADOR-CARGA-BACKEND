@@ -1,0 +1,48 @@
+# Blueprint de Render, todo en plan gratuito.
+# Las variables con `sync: false` son secretos: Render las pide al crear el
+# Blueprint y nunca se guardan en este repositorio.
+services:
+  - type: web
+    name: testeador-carga-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    # No consulta la base de datos: así Neon puede suspenderse cuando no hay uso.
+    healthCheckPath: /health/live
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # El plan gratuito tiene 0,1 CPU y 512 MB: límites acordes.
+      - key: MAX_WORKERS
+        value: "1"
+      - key: VUS_PER_WORKER
+        value: "200"
+      - key: MAX_VUS
+        value: "200"
+      - key: MAX_DURATION_SECONDS
+        value: "120"
+      - key: MAX_CONCURRENT_TESTS
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+
+  # API de ejemplo para tener un destino propio y verificable en producción.
+  - type: web
+    name: testeador-carga-demo
+    runtime: node
+    plan: free
+    buildCommand: "true"
+    startCommand: node scripts/demo-target.js
+    healthCheckPath: /fast
+    envVars:
+      - key: DEMO_VERIFICATION_TOKEN
+        sync: false
