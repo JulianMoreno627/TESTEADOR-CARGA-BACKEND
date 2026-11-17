@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middlewares/validate.js';
@@ -9,9 +10,12 @@ const compareViewQuerySchema = z.object({
   candidate: z.uuid().optional().catch(undefined),
 });
 
+const THEME_SCRIPT = fileURLToPath(new URL('../../rendering/views/theme.client.js', import.meta.url));
+
 export function viewRoutes({ controller }) {
   const router = Router();
 
+  router.get('/theme.js', (_req, res) => res.type('text/javascript').sendFile(THEME_SCRIPT, { maxAge: '1d' }));
   router.get('/history', controller.history);
   router.get('/reports/:id', validate({ params: idParamsSchema }), controller.report);
   router.get('/compare', validate({ query: compareViewQuerySchema }), controller.compare);
